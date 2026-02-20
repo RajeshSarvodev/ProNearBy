@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/pronearby/static/css/main.8249f966.css",
+    "main.js": "/pronearby/static/js/main.fc794673.js",
+    "index.html": "/pronearby/index.html",
+    "main.8249f966.css.map": "/pronearby/static/css/main.8249f966.css.map",
+    "main.fc794673.js.map": "/pronearby/static/js/main.fc794673.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.8249f966.css",
+    "static/js/main.fc794673.js"
+  ]
+}
