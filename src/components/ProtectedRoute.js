@@ -1,3 +1,4 @@
+// src/components/ProtectedRoute.js
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -17,13 +18,24 @@ function ProtectedRoute({ children }) {
   }, [auth]);
 
   if (checking) {
-    return <p style={{ textAlign: "center", marginTop: "50px" }}>Checking authentication...</p>;
+    return (
+      <p style={{ textAlign: "center", marginTop: "50px" }}>
+        Checking authentication...
+      </p>
+    );
   }
 
+  // ❌ Not logged in
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // ❌ Logged in but NOT verified
+  if (!user.emailVerified) {
+    return <Navigate to="/" replace />;
+  }
+
+  // ✅ Logged in + verified
   return children;
 }
 

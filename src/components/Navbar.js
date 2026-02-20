@@ -1,70 +1,88 @@
+// src/components/Navbar.js
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { auth } from "../firebase"; 
+import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 function Navbar() {
   const [user, setUser] = useState(null);
+  const [firstName, setFirstName] = useState("");
+  const [role, setRole] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false); // for mobile toggle
+
+  const ADMIN_EMAILS = ["admin@pronearby.com", "rjindian9@gmail.com"];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        try {
+          const snap = await getDoc(doc(db, "users", currentUser.uid));
+          if (snap.exists()) {
+            setFirstName(snap.data().firstName || "");
+            setRole(snap.data().role || "user");
+          }
+        } catch (err) {
+          console.error("Navbar Firestore error:", err);
+        }
+      } else {
+        setFirstName("");
+        setRole("");
+      }
     });
     return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      alert("Logged out successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Error logging out.");
-    }
+    await signOut(auth);
+    setMenuOpen(false);
   };
 
   return (
     <nav className="navbar">
-      
-      <h1 style={{ margin: 0 }}>
-  <Link to="/" style={{ textDecoration: 'none', color: 'white' }}>ProNearBy</Link>
-</h1>
+      <div className="nav-container">
+        <h1>
+          <Link to="/" style={{ color: "white", textDecoration: "none" }}>
+            ProNearBy
+          </Link>
+        </h1>
 
-      <div className="navbar-links">
-        <Link to="/">Home</Link>
-        <Link to="/post-job">Post Job</Link>
-        <Link to="/find-professionals">Find Professionals</Link>
-        {/* Add the Jobs link */}
-        <Link to="/jobs">Jobs Posted</Link>
-        <Link to="/contact">Contact</Link>
-        {/* Always show Register as Professional */}
-        <Link to="/register-professional" className="btn-register-professional">Register as Professional</Link>
+        {/* Hamburger icon for mobile */}
+        <div
+          className="hamburger"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          &#9776;
+        </div>
 
-        {!user ? (
-          <>
-            <Link to="/login" className="btn-login">Login</Link>
-            <Link to="/register" className="btn-register">Register</Link>
-          </>
-        ) : (
-          <>
-            <span style={{ color: "white", fontWeight: "600", marginRight: "10px" }}>
-              {user.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              style={{
-                backgroundColor: "#ffd700",
-                border: "none",
-                padding: "6px 14px",
-                borderRadius: "6px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              Logout
-            </button>
-          </>
-        )}
+        <div className={`navbar-links ${menuOpen ? "open" : ""}`}>
+          <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link to="/find-professionals" onClick={() => setMenuOpen(false)}>Find Professionals</Link>
+          <Link to="/contact" onClick={() => setMenuOpen(false)}>Contact</Link>
+          <Link to="/post-job" onClick={() => setMenuOpen(false)}>Post Job</Link>
+          <Link to="/jobs" onClick={() => setMenuOpen(false)}>Jobs Posted</Link>
+          <Link to="/register-professional" onClick={() => setMenuOpen(false)}>Register as Professional</Link>
+
+          {!user ? (
+            <>
+              <Link to="/login" className="btn-login" onClick={() => setMenuOpen(false)}>Login</Link>
+              <Link to="/register" className="btn-register" onClick={() => setMenuOpen(false)}>Register</Link>
+            </>
+          ) : (
+            <>
+              <span style={{ color: "white", fontWeight: 600 }}>
+                Hi {firstName || user.email}
+              </span>
+              {ADMIN_EMAILS.includes(user.email) && user.emailVerified && (
+                <Link to="/admin-dashboard" className="btn-admin" onClick={() => setMenuOpen(false)}>
+                  Admin
+                </Link>
+              )}
+              <button onClick={handleLogout} className="btn-logout">Logout</button>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );

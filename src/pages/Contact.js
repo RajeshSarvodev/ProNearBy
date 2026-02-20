@@ -1,4 +1,3 @@
-// src/pages/Contact.js
 import { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
@@ -6,6 +5,7 @@ import { db } from "../firebase";
 function Contact() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState(""); // added
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
 
@@ -15,12 +15,14 @@ function Contact() {
       await addDoc(collection(db, "messages"), {
         name,
         email,
+        contactno: contactNumber, // use contactNumber here
         message,
         timestamp: serverTimestamp(),
       });
       setStatus("Message sent! We will get back to you soon.");
       setName("");
       setEmail("");
+      setContactNumber(""); // reset contact number
       setMessage("");
     } catch (err) {
       console.error(err);
@@ -43,6 +45,13 @@ function Contact() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          placeholder="Contact Number"
+          type="text" // can be "tel" as well
+          value={contactNumber}
+          onChange={(e) => setContactNumber(e.target.value)}
           required
         />
         <textarea

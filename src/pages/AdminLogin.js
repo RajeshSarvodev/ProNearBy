@@ -1,65 +1,90 @@
-// src/pages/AdminLogin.js
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
 function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-    if (email === "admin@pronearby.com" && password === "admin@123") {
-      // Sign in programmatically with a custom token or just set a session
-      // But Firebase Auth requires real sign-in, so we'll do a dummy sign-in
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        // redirect to admin page
-        navigate("/admin-categories");
-      } catch (err) {
-        alert("Error signing in");
+    setError("");
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const user = cred.user;
+
+      // Email must be verified
+      if (!user.emailVerified) {
+        await signOut(auth);
+        setError("Please verify your admin email first.");
+        return;
       }
-    } else {
-      alert("Invalid credentials");
+
+      // Hard-coded admin check
+      if (user.email !== "admin@pronearby.com") {
+        await signOut(auth);
+        setError("Access denied. Not an admin.");
+        return;
+      }
+
+      navigate("/admin-categories");
+    } catch (err) {
+      setError("Invalid admin credentials.");
     }
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "50px auto", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
-      <h2 style={{ textAlign: "center" }}>Admin Login</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ padding: "10px", fontSize: "16px" }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: "10px", fontSize: "16px" }}
-        />
-        <button
-          onClick={handleLogin}
-          style={{
-            padding: "10px",
-            backgroundColor: "#007bff",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            fontSize: "16px",
-            cursor: "pointer"
-          }}
-        >
-          Login
-        </button>
-      </div>
+    <div style={box}>
+      <h2>Admin Login</h2>
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      <input
+        type="email"
+        placeholder="Admin Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={input}
+      />
+
+      <input
+        type="password"
+        placeholder="Admin Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={input}
+      />
+
+      <button onClick={handleLogin} style={btn}>
+        Login
+      </button>
     </div>
   );
 }
+
+const box = {
+  maxWidth: "400px",
+  margin: "60px auto",
+  padding: "25px",
+  border: "1px solid #ccc",
+  borderRadius: "8px"
+};
+
+const input = {
+  width: "100%",
+  padding: "10px",
+  marginBottom: "10px"
+};
+
+const btn = {
+  width: "100%",
+  padding: "10px",
+  background: "#007bff",
+  color: "#fff",
+  border: "none",
+  cursor: "pointer"
+};
 
 export default AdminLogin;

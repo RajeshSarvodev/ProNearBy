@@ -1,146 +1,237 @@
-// src/pages/RegisterProfessional.js
-
 import { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import services from "../data/services"; // import your services list
+import services from "../data/services";
 
 function RegisterProfessional() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [gender, setGender] = useState("");
-  const [professionType, setProfessionType] = useState("");
-  const [professionSpec, setProfessionSpec] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [area, setArea] = useState("");
-  const [street, setStreet] = useState("");
-  const [plotNo, setPlotNo] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [experienceYears, setExperienceYears] = useState("");
-  const [experienceMonths, setExperienceMonths] = useState("");
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    gender: "",
+    professionType: "",
+    professionSpec: "",
+    companyName: "", // ✅ Added
+    city: "",
+    state: "",
+    area: "",
+    street: "",
+    plotNo: "",
+    pincode: "",
+    experienceYears: "",
+    experienceMonths: "",
+  });
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Function to get latitude and longitude from Google Maps API
-  const getCoordinates = async () => {
-    const fullAddress = `${street ? street + ', ' : ''}${area ? area + ', ' : ''}${city}, ${state}, ${pincode}`;
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=YOUR_API_KEY`
-      );
-      const data = await response.json();
-      if (data.status === "OK" && data.results.length > 0) {
-        return data.results[0].geometry.location; // {lat, lng}
-      } else {
-        return null;
-      }
-    } catch (err) {
-      console.error("Error fetching coordinates:", err);
-      return null;
-    }
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError(""); setSuccess(""); setLoading(true);
+    setError("");
+    setSuccess("");
 
-    if (
-      !firstName || !lastName || !gender || !professionType || !professionSpec ||
-      !city || !state || !pincode || !experienceYears || !experienceMonths
-    ) {
-      setError("Please fill all required fields.");
-      setLoading(false);
-      return;
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "gender",
+      "professionType",
+      "professionSpec",
+      "city",
+      "state",
+      "pincode",
+      "experienceYears",
+      "experienceMonths",
+    ];
+
+    for (let field of requiredFields) {
+      if (!form[field]) {
+        setError("Please fill all required fields.");
+        return;
+      }
     }
 
-    // Get coordinates for the professional
-    const coordinates = await getCoordinates();
-    if (!coordinates) {
-      setError("Unable to determine location. Please check your address, city, and pincode.");
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
+      const searchKeywords = [
+        form.firstName,
+        form.lastName,
+        form.professionType,
+        form.professionSpec,
+        form.city,
+        form.state,
+      ].map((v) => v.toLowerCase());
+
       await addDoc(collection(db, "professionals"), {
-        firstName,
-        lastName,
-        gender,
-        professionType,
-        professionSpec,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        gender: form.gender,
+        professionType: form.professionType,
+        professionSpec: form.professionSpec,
+        companyName: form.companyName, // ✅ Saved to Firestore
         location: {
-          city,
-          state,
-          area,
-          street,
-          plotNo,
-          pincode,
-          lat: coordinates.lat,
-          lng: coordinates.lng,
+          street: form.street,
+          area: form.area,
+          city: form.city,
+          state: form.state,
+          plotNo: form.plotNo,
+          pincode: form.pincode,
         },
-        experience: { years: experienceYears, months: experienceMonths },
+        experience: {
+          years: Number(form.experienceYears),
+          months: Number(form.experienceMonths),
+        },
+        approved: false, // 🔒 admin approval required
+        searchKeywords,
         createdAt: serverTimestamp(),
       });
 
-      setSuccess("Registration successful!");
-      setFirstName(""); setLastName(""); setGender(""); setProfessionType(""); setProfessionSpec("");
-      setCity(""); setState(""); setArea(""); setStreet(""); setPlotNo(""); setPincode("");
-      setExperienceYears(""); setExperienceMonths("");
+      setSuccess(
+        "Registration successful ! Your profile will appear after admin approval with 24 Hrs."
+      );
+
+      setForm({
+        firstName: "",
+        lastName: "",
+        gender: "",
+        professionType: "",
+        professionSpec: "",
+        companyName: "",
+        city: "",
+        state: "",
+        area: "",
+        street: "",
+        plotNo: "",
+        pincode: "",
+        experienceYears: "",
+        experienceMonths: "",
+      });
     } catch (err) {
       console.error(err);
-      setError("Failed to register. Try again.");
+      setError("Registration failed. Please try again.");
     }
+
     setLoading(false);
   };
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h2>Register as a Professional</h2>
-        <p className="subtitle">Enter your professional details to register.</p>
+        <h2>Professional Registration</h2>
+        <p className="subtitle">
+          Register your professional profile to appear in search results.
+        </p>
 
         {error && <p className="error-box">{error}</p>}
         {success && <p className="success-box">{success}</p>}
 
         <form onSubmit={handleRegister}>
-          {/* Name */}
-          <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-          <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+          <input
+            name="firstName"
+            placeholder="First Name"
+            value={form.firstName}
+            onChange={handleChange}
+          />
+          <input
+            name="lastName"
+            placeholder="Last Name"
+            value={form.lastName}
+            onChange={handleChange}
+          />
 
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
-            {/* Gender */}
-            <select value={gender} onChange={(e) => setGender(e.target.value)} required>
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
+          <select name="gender" value={form.gender} onChange={handleChange}>
+            <option value="">Select Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
 
-            {/* Type of Profession */}
-            <select value={professionType} onChange={(e) => setProfessionType(e.target.value)} required>
-              <option value="">Select Profession</option>
-              {services.map((service, index) => <option key={index} value={service}>{service}</option>)}
-            </select>
-          </div>
+          <select
+            name="professionType"
+            value={form.professionType}
+            onChange={handleChange}
+          >
+            <option value="">Select Profession</option>
+            {services.map((s, i) => (
+              <option key={i} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
 
-          {/* Profession Specification */}
-          <input type="text" placeholder="Profession Specification" value={professionSpec} onChange={(e) => setProfessionSpec(e.target.value)} required />
+          <input
+            name="professionSpec"
+            placeholder="Specialization (e.g. Heart Surgeon, AC Repair)"
+            value={form.professionSpec}
+            onChange={handleChange}
+          />
 
-          {/* Location */}
-          <input type="text" placeholder="Street Address" value={street} onChange={(e) => setStreet(e.target.value)} />
-          <input type="text" placeholder="Area Name" value={area} onChange={(e) => setArea(e.target.value)} />
-          <input type="text" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} required />
-          <input type="text" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} required />
-          <input type="text" placeholder="Plot/House No." value={plotNo} onChange={(e) => setPlotNo(e.target.value)} />
-          <input type="number" placeholder="Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)} required />
+          <input
+            name="companyName" // ✅ Fixed input
+            placeholder="Company Name / NA if not available"
+            value={form.companyName}
+            onChange={handleChange}
+          />
 
-          {/* Experience */}
-          <input type="number" placeholder="Years of Experience" value={experienceYears} onChange={(e) => setExperienceYears(e.target.value)} required />
-          <input type="number" placeholder="Months of Experience" value={experienceMonths} onChange={(e) => setExperienceMonths(e.target.value)} required />
+          <input
+            name="street"
+            placeholder="Street"
+            value={form.street}
+            onChange={handleChange}
+          />
+          <input
+            name="area"
+            placeholder="Area"
+            value={form.area}
+            onChange={handleChange}
+          />
+          <input
+            name="city"
+            placeholder="City"
+            value={form.city}
+            onChange={handleChange}
+          />
+          <input
+            name="state"
+            placeholder="State"
+            value={form.state}
+            onChange={handleChange}
+          />
+          <input
+            name="plotNo"
+            placeholder="House / Plot No"
+            value={form.plotNo}
+            onChange={handleChange}
+          />
+          <input
+            name="pincode"
+            placeholder="Pincode"
+            value={form.pincode}
+            onChange={handleChange}
+          />
 
-          <button type="submit" disabled={loading}>{loading ? "Registering..." : "Register"}</button>
+          <input
+            name="experienceYears"
+            type="number"
+            placeholder="Experience (Years)"
+            value={form.experienceYears}
+            onChange={handleChange}
+          />
+          <input
+            name="experienceMonths"
+            type="number"
+            placeholder="Experience (Months)"
+            value={form.experienceMonths}
+            onChange={handleChange}
+          />
+
+          <button disabled={loading}>
+            {loading ? "Registering..." : "Register"}
+          </button>
         </form>
       </div>
     </div>

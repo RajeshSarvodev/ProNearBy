@@ -1,4 +1,3 @@
-// src/pages/Register.js
 import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
@@ -31,6 +30,7 @@ function Register() {
     e.preventDefault();
     setError("");
 
+    // 🔴 Basic validation
     if (
       !firstName ||
       !lastName ||
@@ -50,7 +50,7 @@ function Register() {
 
     if (!passwordRegex.test(password)) {
       setError(
-        "Password must be at least 8 characters and include uppercase, lowercase, number and special character."
+        "Password must be at least 8 characters with uppercase, lowercase, number, and special character."
       );
       return;
     }
@@ -58,6 +58,7 @@ function Register() {
     try {
       setLoading(true);
 
+      // Check if email already exists
       const methods = await fetchSignInMethodsForEmail(auth, email);
       if (methods.length > 0) {
         setError("Email already exists. Please login.");
@@ -65,29 +66,37 @@ function Register() {
         return;
       }
 
+      // Create auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
 
+      // Send verification email
       await sendEmailVerification(userCredential.user);
 
+      // Admin emails
+      const adminEmails = ["admin@pronearby.com", "rjindian9@gmail.com"];
+      const role = adminEmails.includes(email) ? "admin" : "user";
+
+      // Save profile to Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         firstName,
         lastName,
+        phone: `${countryCode}${mobile}`,
         email,
-        mobile: `${countryCode}${mobile}`,
-        role: "user",
-        emailVerified: false,
+        role,
         createdAt: serverTimestamp(),
       });
 
       alert(
-        "We’ve sent a verification email. Please check your Inbox and Spam folder to activate your account."
+        "Account created successfully! Please verify your email before logging in."
       );
+
       navigate("/login");
     } catch (err) {
+      console.error(err);
       setError(err.message.replace("Firebase:", "").trim());
     } finally {
       setLoading(false);
@@ -102,6 +111,7 @@ function Register() {
 
         {error && <div className="error-box">{error}</div>}
 
+        {/* Name */}
         <div className="row">
           <input
             placeholder="First Name"
@@ -115,6 +125,7 @@ function Register() {
           />
         </div>
 
+        {/* Phone */}
         <div className="row">
           <input
             className="country"
@@ -128,6 +139,7 @@ function Register() {
           />
         </div>
 
+        {/* Email */}
         <input
           type="email"
           placeholder="Email Address"
@@ -135,6 +147,7 @@ function Register() {
           onChange={(e) => setEmail(e.target.value)}
         />
 
+        {/* Password */}
         <div className="password-box">
           <input
             type={showPassword ? "text" : "password"}
@@ -147,6 +160,7 @@ function Register() {
           </span>
         </div>
 
+        {/* Confirm Password */}
         <div className="password-box">
           <input
             type={showConfirm ? "text" : "password"}

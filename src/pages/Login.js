@@ -1,68 +1,56 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
+  const ADMIN_EMAILS = ["admin@pronearby.com", "rjindian9@gmail.com"];
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setMessage("");
     setLoading(true);
-
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      setLoading(false);
-      return;
-    }
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      if (!userCredential.user.emailVerified) {
+      const user = userCredential.user;
+
+      // Admin shortcut: bypass Firestore role check
+      if (ADMIN_EMAILS.includes(user.email)) {
+        navigate("/admin-dashboard");
+        return;
+      }
+
+      // Check email verification for normal users
+      if (!user.emailVerified) {
+        await signOut(auth);
         setError("Please verify your email before logging in.");
         setLoading(false);
         return;
       }
-      navigate("/home");
-    } catch (err) {
-      switch (err.code) {
-        case "auth/invalid-credential":
-        case "auth/wrong-password":
-        case "auth/user-not-found":
-          setError("Invalid email or password.");
-          break;
-        case "auth/too-many-requests":
-          setError("Too many failed attempts. Please try again later.");
-          break;
-        default:
-          setError("Something went wrong. Please try again.");
-      }
-      setLoading(false);
-    }
-  };
 
-  const handleForgotPassword = () => {
-    const emailPrompt = prompt("Enter your email to reset password:");
-    if (emailPrompt) {
-      import("../firebase").then(({ auth }) => {
-        import("firebase/auth").then(({ sendPasswordResetEmail }) => {
-          sendPasswordResetEmail(auth, emailPrompt)
-            .then(() => {
-              alert("Reset link sent! Check your email.");
-            })
-            .catch(() => {
-              alert("Failed to send reset email. Check the email and try again.");
-            });
-        });
-      });
+      // Fetch role from Firestore
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const role = snap.exists() ? snap.data().role : "user";
+
+      if (role === "professional") {
+        navigate("/jobs-posted");
+      } else {
+        navigate("/home");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,8 +58,8 @@ function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <h2>Login</h2>
+
         {error && <p className="error-box">{error}</p>}
-        {message && <p className="success-box">{message}</p>}
 
         <form onSubmit={handleLogin}>
           <input
@@ -88,19 +76,11 @@ function Login() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button type="submit" disabled={loading}>
+          <button disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
-        {/* Forgot Password Button */}
-        <div className="forgot-container">
-          <button className="forgot-btn" onClick={handleForgotPassword}>
-            Forgot Password?
-          </button>
-        </div>
-
-        {/* Register Link */}
         <p style={{ textAlign: "center", marginTop: "15px" }}>
           Don't have an account? <Link to="/register">Register Here</Link>
         </p>
